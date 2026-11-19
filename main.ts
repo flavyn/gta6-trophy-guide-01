@@ -1,36 +1,83 @@
-// A working gta6-trophy-guide-01 entry (Node 22, standard library only): the guide is this directory's app/ folder,
-// plain static files a browser opens at app/index.html (ES modules, CSS, no build step), offline: it loads nothing
-// over the network, and its trophy list and guides are app/data/trophies.json. The program hands it in: it copies app/
-// and screenshots/ from beside this file to /output and writes /output/dossier.json, the summary the judge reads (your
-// screenshots, the first load's files and bytes, and your source), with the vendored make.fun library. Leave
-// vendor/makefun-frontend.ts as it is: the scorer requires dossier.json to be byte for byte what its own copy writes.
+// Platinum Ledger — the hand-in program for make.fun's gta6-trophy-guide-01 lane.
 //
-// Only the plumbing, not a winner: a plain checklist of the 55 trophies with a one-line hint each. Write a real guide
-// for every trophy in your own words, a roadmap to the platinum, filters and a spoiler setting in app/, put 3 or 4 PNG
-// or JPEG screenshots of it in screenshots/ (the first by name is the cover; shots.json says which views this
-// starter's were taken of), and run it.
+// The guide itself is this repository's app/ folder: plain static files a browser opens at app/index.html,
+// no build step and no network at run time. This program copies app/ and screenshots/ beside it into
+// /output (or MAKEFUN_OUTPUT_DIR outside the grader), checks the trophy file before it copies it, and
+// writes /output/dossier.json with the kit's own buildDossier, so the dossier is byte for byte the one the
+// gate rebuilds. vendor/makefun-frontend.ts is the kit's copy and is never edited here.
 //
-// Serve it locally with `node serve.ts`, then open http://localhost:8080.
-// Outside the grader's container, MAKEFUN_OUTPUT_DIR stands in for /output:
-//   mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
+// Run locally:   node main.ts            (writes /output)
+//                $env:MAKEFUN_OUTPUT_DIR = 'out'; node main.ts
 
-import { cpSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildDossier } from './vendor/makefun-frontend.ts';
 
-const here = fileURLToPath(new URL('.', import.meta.url));
-const out = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
+const repoRoot = dirname(fileURLToPath(import.meta.url));
+const outputRoot = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
 
-mkdirSync(out, { recursive: true });
-cpSync(join(here, 'app'), join(out, 'app'), { recursive: true });
-mkdirSync(join(out, 'screenshots'), { recursive: true });
-if (existsSync(join(here, 'screenshots'))) cpSync(join(here, 'screenshots'), join(out, 'screenshots'), { recursive: true });
+// The scorer's caps (reference/gate.json): the dossier text, the screenshots and the size of app/.
+const DOSSIER_CAPS = {
+  text_max_bytes: 163840,
+  screenshots: { max: 4, max_bytes: 262144 },
+  app_max_files: 993,
+  app_max_bytes: 50331648,
+};
 
-// The scorer's own caps (reference/gate.json): only text_max_bytes shapes the bytes; the others refuse an entry the
-// scorer would refuse (more than 4 screenshots or one over 256 KiB; more than 993 files and directories in app/ or
-// 48 MiB of app files: app/ counts beside /output's own 1000-entry cap, its screenshots/ and dossier.json).
-writeFileSync(
-  join(out, 'dossier.json'),
-  buildDossier(out, { text_max_bytes: 163840, screenshots: { max: 4, max_bytes: 262144 }, app_max_files: 993, app_max_bytes: 50331648 }),
-);
+const EXPECTED_TROPHIES = 55;
+
+function fail(message) {
+  console.error('main.ts: ' + message);
+  process.exit(1);
+}
+
+function checkTrophyFile() {
+  const file = join(repoRoot, 'app', 'data', 'trophies.json');
+  if (!existsSync(file)) fail('app/data/trophies.json is missing');
+  let document;
+  try {
+    document = JSON.parse(readFileSync(file, 'utf8'));
+  } catch (error) {
+    fail('app/data/trophies.json is not JSON: ' + error.message);
+  }
+  const list = Array.isArray(document) ? document : document.trophies;
+  if (!Array.isArray(list)) fail('app/data/trophies.json has no trophies array');
+  const named = list.filter((item) => item && typeof item.name === 'string' && typeof item.guide === 'string' && item.guide.trim() !== '');
+  if (named.length < EXPECTED_TROPHIES) {
+    fail('only ' + named.length + ' of ' + EXPECTED_TROPHIES + ' trophies carry a name and a guide');
+  }
+  return named.length;
+}
+
+function resetDirectory(path) {
+  mkdirSync(path, { recursive: true });
+}
+
+function copyIntoOutput() {
+  const appSource = join(repoRoot, 'app');
+  const shotsSource = join(repoRoot, 'screenshots');
+  if (!existsSync(join(appSource, 'index.html'))) fail('app/index.html is missing');
+  if (!existsSync(shotsSource)) fail('screenshots/ is missing');
+
+  resetDirectory(outputRoot);
+  cpSync(appSource, join(outputRoot, 'app'), { recursive: true, force: true });
+  cpSync(shotsSource, join(outputRoot, 'screenshots'), { recursive: true, force: true });
+}
+
+function writeDossier() {
+  const dossier = buildDossier(outputRoot, DOSSIER_CAPS);
+  writeFileSync(join(outputRoot, 'dossier.json'), dossier);
+  return statSync(join(outputRoot, 'dossier.json')).size;
+}
+
+function main() {
+  const trophies = checkTrophyFile();
+  copyIntoOutput();
+  const bytes = writeDossier();
+  const shots = readdirSync(join(outputRoot, 'screenshots')).length;
+  console.log('Platinum Ledger handed in: ' + trophies + ' trophies, ' + shots +
+    ' screenshots, dossier.json ' + bytes + ' bytes');
+}
+
+main();

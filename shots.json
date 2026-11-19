@@ -1,5 +1,30 @@
 [
-  { "file": "1-checklist.jpg", "path": "/", "viewport": { "width": 1280, "height": 800 } },
-  { "file": "2-silver.jpg", "path": "/", "grade": "silver", "viewport": { "width": 1280, "height": 800 } },
-  { "file": "3-bronze.jpg", "path": "/", "grade": "bronze", "scroll": 1400, "viewport": { "width": 1280, "height": 800 } }
+  {
+    "file": "1-checklist.jpg",
+    "view": "checklist with a trophy guide open, its counter and its sources",
+    "hash": "#/trophy/31",
+    "progress": "13 of 55 earned, counters part way",
+    "viewport": { "width": 1280, "height": 800 }
+  },
+  {
+    "file": "2-roadmap.jpg",
+    "view": "the seven-step roadmap to the platinum, with progress by grade",
+    "hash": "#/roadmap",
+    "progress": "13 of 55 earned",
+    "viewport": { "width": 1280, "height": 800 }
+  },
+  {
+    "file": "3-missables.jpg",
+    "view": "the provisional missable flags and the story-locked list",
+    "hash": "#/missables",
+    "progress": "13 of 55 earned",
+    "viewport": { "width": 1280, "height": 800 }
+  },
+  {
+    "file": "4-spoiler-free.jpg",
+    "view": "spoiler-free on, story filter picked: story names, descriptions and guides sealed",
+    "hash": "#/trophy/5",
+    "progress": "13 of 55 earned, 11 story trophies sealed",
+    "viewport": { "width": 1280, "height": 800 }
+  }
 ]
